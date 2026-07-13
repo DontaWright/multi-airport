@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-
+// ---------- Airport Helper Functions ----------
 const iata = /^[A-Z]{3}$/;
 
 function parseAirportCodes(value) {
@@ -14,8 +14,9 @@ function parseAirportCodes(value) {
 function uniqueCodes(codes) {
   return [...new Set(codes)];
 }
-
+// ---------- Main Navora Component ----------
 export default function Home() {
+  // ---------- Flight Search State ----------
   const [origins, setOrigins] = useState([]);
   const [destination, setDestination] = useState("");
   const [depart, setDepart] = useState("");
@@ -23,10 +24,10 @@ export default function Home() {
   const [errors, setErrors] = useState({});
   const [originInput, setOriginInput] = useState("");
   const [history, setHistory] = useState([]);
-
+  // ---------- Navigation State ----------
   const [step, setStep] = useState("welcome");
   const [menuOpen, setMenuOpen] = useState(false);
-
+  // ---------- User Profile State ----------
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -34,7 +35,7 @@ export default function Home() {
     address: "",
   });
   const [homeAirport, setHomeAirport] = useState("");
-
+  // ---------- Load Saved Profile ----------
   useEffect(() => {
     try {
       const raw = localStorage.getItem("multi-airport-user-profile-v1");
@@ -57,7 +58,7 @@ export default function Home() {
       console.log("Profile load failed:", err);
     }
   }, []);
-
+  // ---------- Save Profile Changes ----------
   useEffect(() => {
     try {
       const saved = {
@@ -74,7 +75,7 @@ export default function Home() {
       console.log("Profile save failed:", err);
     }
   }, [profile, homeAirport, origins]);
-
+  // ---------- Search Validation ----------
   function validate() {
     const err = {};
 
@@ -96,6 +97,7 @@ export default function Home() {
 
     return Object.keys(err).length === 0 ? list : null;
   }
+  // ---------- Airport Management ----------
   function addOrigin() {
     const codes = parseAirportCodes(originInput);
     if (codes.length === 0) return;
@@ -126,6 +128,7 @@ export default function Home() {
   function removeOrigin(code) {
     setOrigins((prev) => prev.filter((x) => x !== code));
   }
+  // ---------- Flight Search Submission ----------
   function onSubmit(e) {
     e.preventDefault();
     const list = validate();
@@ -143,6 +146,7 @@ export default function Home() {
     setResults(payload);
     setHistory((prev) => [payload, ...prev].slice(0, 5));
   }
+  // ---------- Search History ----------
   function clearHistory() {
     setHistory([]);
     setResults(null);
@@ -157,6 +161,7 @@ export default function Home() {
     setOriginInput("");
     setErrors({});
   }
+  // ---------- Navigation Bar ----------
   function Navbar() {
     return (
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
@@ -165,7 +170,7 @@ export default function Home() {
           onClick={() => setStep("welcome")}
           className="font-bold text-lg"
         >
-          Multi-Airport
+          Navora
         </button>
 
         <div className="relative">
@@ -217,36 +222,66 @@ export default function Home() {
       </div>
     );
   }
+  // ---------- Welcome Page ----------
   if (step === "welcome") {
     return (
-      <section className="min-h-screen bg-black text-white">
+      <section className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950 to-black text-white">
         <Navbar />
-        <div className="mx-auto max-w-2xl px-6 py-16">
-          <h1 className="text-4xl font-bold">Multi-Airport Flight App</h1>
 
-          <p className="mt-4 text-lg opacity-80">
-            Find better flight options by searching from multiple nearby
-            airports at once.
-          </p>
-
-          <div className="mt-8 bg-white/5 rounded-2xl p-6 ring-1 ring-white/10">
-            <h2 className="text-2xl font-semibold">Why this app exists</h2>
-
-            <p className="mt-3 opacity-80">
-              Flight prices change a lot between nearby airports. This app helps
-              you save time by remembering your home airport and nearby airports
-              so you do not have to enter them every search.
+        <div className="mx-auto flex min-h-[calc(100vh-65px)] max-w-5xl flex-col justify-between px-6 py-16">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-300">
+              Smarter flight search
             </p>
 
-            <p className="mt-3 opacity-80">
-              First, you will create a simple profile. Then you will set your
-              home airport and add up to four more airports.
+            <h1 className="mt-6 text-5xl font-bold tracking-tight sm:text-6xl">
+              Welcome to Navora
+            </h1>
+
+            <p className="mt-5 text-2xl font-semibold text-blue-200">
+              Search once. Fly smarter.
+            </p>
+
+            <p className="mx-auto mt-8 max-w-2xl text-lg leading-8 text-slate-300">
+              Navora helps you search flights from multiple airports at once, so
+              you get more options without repeating the same search over and
+              over.
+            </p>
+          </div>
+
+          <div className="my-16 grid gap-5 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-lg font-semibold">Save your airports</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Add your home airport and nearby airports once.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-lg font-semibold">Run one search</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Navora checks every saved airport for the same destination.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <p className="text-lg font-semibold">Compare better options</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Review flights from every airport without opening multiple tabs.
+              </p>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-xl text-center">
+            <p className="mb-6 text-slate-300">
+              Here at Navora, we aim to make your travel experience as seamless
+              as possible.
             </p>
 
             <button
               type="button"
-              onClick={() => setStep("profile")}
-              className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded"
+              onClick={() => setStep("account")}
+              className="w-full rounded-xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-lg shadow-blue-900/30 transition hover:bg-blue-500"
             >
               Get Started
             </button>
@@ -255,17 +290,85 @@ export default function Home() {
       </section>
     );
   }
+  // ---------- Account Choice Page ----------
+  if (step === "account") {
+    const hasSavedProfile =
+      profile.firstName.trim() !== "" && origins.length > 0;
 
-  if (step === "profile") {
     return (
-      <section className="min-h-screen bg-black text-white">
+      <section className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950 to-black text-white">
+        <Navbar />
+
+        <div className="mx-auto max-w-xl px-6 py-16">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <h1 className="text-3xl font-bold">Welcome to Navora</h1>
+
+            <p className="mt-3 text-slate-300">
+              Create a new profile or continue with a profile saved on this
+              device.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfile({
+                    firstName: "",
+                    lastName: "",
+                    birthday: "",
+                    address: "",
+                  });
+                  setHomeAirport("");
+                  setOrigins([]);
+                  setDestination("");
+                  setDepart("");
+                  setResults(null);
+                  setErrors({});
+                  setStep("profile");
+                }}
+                className="w-full rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500"
+              >
+                Create New Profile
+              </button>
+
+              {hasSavedProfile && (
+                <button
+                  type="button"
+                  onClick={() => setStep("search")}
+                  className="w-full rounded-xl bg-white/10 px-6 py-3 font-semibold text-white hover:bg-white/20"
+                >
+                  Continue with {profile.firstName}
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled
+                className="w-full cursor-not-allowed rounded-xl border border-white/10 px-6 py-3 font-semibold text-white opacity-50"
+              >
+                Log In, Coming Later
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+  // ---------- Profile Page ----------
+  if (step === "profile") {
+    const isEditingProfile = origins.length > 0;
+    return (
+      <section className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950 to-black text-white">
         <Navbar />
         <div className="mx-auto max-w-2xl px-6 py-16">
-          <h1 className="text-3xl font-bold">Your Profile</h1>
+          <h1 className="text-4xl font-bold">
+            {isEditingProfile ? "Edit Your Profile" : "Create Your Profile"}
+          </h1>
 
           <p className="mt-2 text-sm opacity-80">
-            We will use this to set up your home airport and nearby airport
-            options.
+            {isEditingProfile
+              ? "Update your personal information or manage your saved airports."
+              : "Enter your information so Navora can set up your saved airports."}
           </p>
 
           <form className="mt-8 w-full max-w-xl bg-white/5 rounded-2xl p-6 shadow-lg ring-1 ring-white/10 flex flex-col gap-4">
@@ -318,7 +421,8 @@ export default function Home() {
               />
             </div>
 
-            <div className="bg-white/10 rounded-lg p-4">
+            {/* ---------- Saved Airports Section ---------- */}
+            <div className="mt-2 rounded-xl border border-blue-400/20 bg-blue-500/10 p-5">
               <h2 className="text-lg font-semibold">Saved Airports</h2>
 
               <p className="mt-2 text-sm opacity-80">
@@ -341,17 +445,23 @@ export default function Home() {
 
             <button
               type="button"
-              onClick={() => setStep("search")}
-              disabled={origins.length === 0}
+              onClick={() => setStep(isEditingProfile ? "search" : "airports")}
+              disabled={
+                !profile.firstName.trim() ||
+                !profile.lastName.trim() ||
+                !profile.birthday ||
+                !profile.address.trim()
+              }
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded"
             >
-              Save Profile
+              {isEditingProfile ? "Save Changes" : "Continue to Airports"}
             </button>
           </form>
         </div>
       </section>
     );
   }
+  // ---------- Airport Setup Page ----------
   if (step === "airports") {
     return (
       <section className="min-h-screen bg-black text-white">
@@ -440,25 +550,48 @@ export default function Home() {
       </section>
     );
   }
+  // ---------- Flight Search Page ----------
   if (step === "search") {
     return (
-      <section className="min-h-screen bg-black text-white">
+      <section className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950 to-black text-white">
         <Navbar />
         <div className="mx-auto max-w-2xl px-6 py-10">
-          <h1 className="text-3xl font-bold">Multi-Airport Flight App</h1>
-          <p className="mt-2 text-sm opacity-80">Clean slate. We start here.</p>
+          <h1 className="text-4xl font-bold">Search Flights</h1>
 
+          <p className="mt-3 text-slate-300">
+            Search all your saved airports with one destination.
+          </p>
           <form
             onSubmit={onSubmit}
             className="mt-8 w-full max-w-xl bg-white/5 rounded-2xl p-6 shadow-lg ring-1 ring-white/10 flex flex-col gap-4"
           >
-            <div className="bg-white/10 rounded-lg p-4">
-              <p className="text-sm opacity-80">Searching from</p>
-              <p className="font-semibold">
+            <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-5">
+              <p className="text-sm font-medium text-blue-200">
+                Searching from
+              </p>
+
+              <p className="mt-2 text-lg font-semibold">
                 {origins.length > 0
                   ? origins.join(", ")
                   : "No airports saved yet"}
               </p>
+
+              {origins.length === 0 && (
+                <div className="mt-3">
+                  <p className="text-sm text-slate-300">
+                    Add your home airport and nearby airports from your profile.
+                  </p>
+
+                  {/* ---------- Airport Setup Shortcut ---------- */}
+                  <button
+                    type="button"
+                    onClick={() => setStep("profile")}
+                    className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+                  >
+                    Set Up Airports
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
@@ -468,7 +601,8 @@ export default function Home() {
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 placeholder="e.g. LAX"
-                className="w-full p-2 rounded bg-white text-black"
+                disabled={origins.length === 0}
+                className="w-full p-2 rounded bg-white text-black disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {errors.destination && (
                 <p className="mt-1 text-red-400 text-sm">
@@ -483,7 +617,8 @@ export default function Home() {
                 type="date"
                 value={depart}
                 onChange={(e) => setDepart(e.target.value)}
-                className="w-full p-2 rounded bg-white text-black"
+                disabled={origins.length === 0}
+                className="w-full p-2 rounded bg-white text-black disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
