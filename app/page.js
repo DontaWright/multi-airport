@@ -21,9 +21,17 @@ export default function Home() {
   const [destination, setDestination] = useState("");
   const [depart, setDepart] = useState("");
   const [results, setResults] = useState(null);
+  const [flightOptions, setFlightOptions] = useState([]);
+  const [sortBy, setSortBy] = useState("price");
   const [errors, setErrors] = useState({});
   const [originInput, setOriginInput] = useState("");
   const [history, setHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  // ---------- Trip Details State ----------
+  const [tripType, setTripType] = useState("round-trip");
+  const [returnDate, setReturnDate] = useState("");
+  const [passengers, setPassengers] = useState(1);
+  const [cabinClass, setCabinClass] = useState("economy");
   // ---------- Navigation State ----------
   const [step, setStep] = useState("welcome");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,29 +43,43 @@ export default function Home() {
     address: "",
   });
   const [homeAirport, setHomeAirport] = useState("");
-  // ---------- Load Saved Profile ----------
+  // ---------- Load Saved Profile and Search History ----------
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("multi-airport-user-profile-v1");
-      if (!raw) return;
+      const profileRaw = localStorage.getItem("multi-airport-user-profile-v1");
 
-      const saved = JSON.parse(raw);
+      if (profileRaw) {
+        const saved = JSON.parse(profileRaw);
 
-      if (saved.profile) setProfile(saved.profile);
-      if (saved.homeAirport) setHomeAirport(saved.homeAirport);
-      if (Array.isArray(saved.origins)) setOrigins(saved.origins);
+        if (saved.profile) setProfile(saved.profile);
+        if (saved.homeAirport) setHomeAirport(saved.homeAirport);
+        if (Array.isArray(saved.origins)) setOrigins(saved.origins);
 
-      if (
-        saved.profile &&
-        Array.isArray(saved.origins) &&
-        saved.origins.length > 0
-      ) {
-        setStep("search");
+        if (
+          saved.profile &&
+          Array.isArray(saved.origins) &&
+          saved.origins.length > 0
+        ) {
+          setStep("search");
+        }
+      }
+
+      const historyRaw = localStorage.getItem("navora-search-history-v1");
+
+      if (historyRaw) {
+        const savedHistory = JSON.parse(historyRaw);
+
+        if (Array.isArray(savedHistory)) {
+          setHistory(savedHistory);
+        }
       }
     } catch (err) {
-      console.log("Profile load failed:", err);
+      console.log("Saved data load failed:", err);
+    } finally {
+      setHistoryLoaded(true);
     }
   }, []);
+
   // ---------- Save Profile Changes ----------
   useEffect(() => {
     try {
@@ -75,14 +97,27 @@ export default function Home() {
       console.log("Profile save failed:", err);
     }
   }, [profile, homeAirport, origins]);
+
+  // ---------- Save Search History ----------
+  useEffect(() => {
+    if (!historyLoaded) return;
+
+    try {
+      localStorage.setItem("navora-search-history-v1", JSON.stringify(history));
+    } catch (err) {
+      console.log("Search history save failed:", err);
+    }
+  }, [history, historyLoaded]);
+
   // ---------- Search Validation ----------
+
   function validate() {
     const err = {};
 
     const list = uniqueCodes([...origins, ...parseAirportCodes(originInput)]);
 
-    if (list.length < 2 || list.length > 5) {
-      err.origins = "Enter 2 to 5 origin airports.";
+    if (list.length < 1 || list.length > 5) {
+      err.origins = "Save 1 to 5 origin airports.";
     }
 
     if (list.some((code) => !iata.test(code))) {
@@ -91,6 +126,23 @@ export default function Home() {
 
     if (!iata.test(destination.trim().toUpperCase())) {
       err.destination = "Destination must be a 3-letter IATA code.";
+    }
+
+    if (!depart) {
+      err.depart = "Select a departure date.";
+    }
+
+    if (tripType === "round-trip" && !returnDate) {
+      err.returnDate = "Select a return date.";
+    }
+
+    if (
+      tripType === "round-trip" &&
+      depart &&
+      returnDate &&
+      returnDate < depart
+    ) {
+      err.returnDate = "Return date cannot be before departure.";
     }
 
     setErrors(err);
@@ -131,21 +183,63 @@ export default function Home() {
   // ---------- Flight Search Submission ----------
   function onSubmit(e) {
     e.preventDefault();
+
     const list = validate();
     if (!list) return;
+
     setOrigins(list);
     setOriginInput("");
 
     const payload = {
       origins: list,
       destination: destination.trim().toUpperCase(),
+      tripType,
       depart,
+      returnDate: tripType === "round-trip" ? returnDate : "",
+      passengers,
+      cabinClass,
     };
 
+    // ---------- Temporary Mock Flight Results ----------
+    const airlines = [
+      "Delta",
+      "American Airlines",
+      "United Airlines",
+      "Southwest",
+    ];
+
+    const mockFlights = list.flatMap((origin, originIndex) => [
+      {
+        id: `${origin}-1`,
+        airline: airlines[originIndex % airlines.length],
+        origin,
+        destination: payload.destination,
+        departureTime: "8:15 AM",
+        arrivalTime: "11:05 AM",
+        duration: "2h 50m",
+        stops: "Nonstop",
+        price: 189 + originIndex * 35,
+      },
+      {
+        id: `${origin}-2`,
+        airline: airlines[(originIndex + 1) % airlines.length],
+        origin,
+        destination: payload.destination,
+        departureTime: "1:40 PM",
+        arrivalTime: "5:25 PM",
+        duration: "3h 45m",
+        stops: "1 stop",
+        price: 149 + originIndex * 30,
+      },
+    ]);
+
     console.log("SEARCH:", payload);
+
     setResults(payload);
+    setFlightOptions(mockFlights);
     setHistory((prev) => [payload, ...prev].slice(0, 5));
   }
+
   // ---------- Search History ----------
   function clearHistory() {
     setHistory([]);
@@ -156,7 +250,11 @@ export default function Home() {
   function loadSearch(item) {
     setOrigins(item.origins);
     setDestination(item.destination);
+    setTripType(item.tripType || "round-trip");
     setDepart(item.depart);
+    setReturnDate(item.returnDate || "");
+    setPassengers(item.passengers || 1);
+    setCabinClass(item.cabinClass || "economy");
     setResults(item);
     setOriginInput("");
     setErrors({});
@@ -565,6 +663,39 @@ export default function Home() {
             onSubmit={onSubmit}
             className="mt-8 w-full max-w-xl bg-white/5 rounded-2xl p-6 shadow-lg ring-1 ring-white/10 flex flex-col gap-4"
           >
+            {/* ---------- Trip Type Controls ---------- */}
+            <div>
+              <p className="mb-2 text-sm font-medium">Trip Type</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTripType("round-trip")}
+                  className={`rounded-lg px-4 py-2 font-semibold ${
+                    tripType === "round-trip"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white/10 text-slate-300 hover:bg-white/20"
+                  }`}
+                >
+                  Round Trip
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTripType("one-way");
+                    setReturnDate("");
+                  }}
+                  className={`rounded-lg px-4 py-2 font-semibold ${
+                    tripType === "one-way"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white/10 text-slate-300 hover:bg-white/20"
+                  }`}
+                >
+                  One Way
+                </button>
+              </div>
+            </div>
             <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-5">
               <p className="text-sm font-medium text-blue-200">
                 Searching from
@@ -620,11 +751,79 @@ export default function Home() {
                 disabled={origins.length === 0}
                 className="w-full p-2 rounded bg-white text-black disabled:opacity-50 disabled:cursor-not-allowed"
               />
+
+              {errors.depart && (
+                <p className="mt-1 text-sm text-red-400">{errors.depart}</p>
+              )}
+            </div>
+
+            {/* ---------- Return Date Field ---------- */}
+            {tripType === "round-trip" && (
+              <div>
+                <label className="block mb-1 text-sm">Return date</label>
+                <input
+                  type="date"
+                  value={returnDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  disabled={origins.length === 0}
+                  min={depart || undefined}
+                  className="w-full p-2 rounded bg-white text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+
+                {errors.returnDate && (
+                  <p className="mt-1 text-sm text-red-400">
+                    {errors.returnDate}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ---------- Passenger and Cabin Details ---------- */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block mb-1 text-sm">Passengers</label>
+                <select
+                  value={passengers}
+                  onChange={(e) => setPassengers(Number(e.target.value))}
+                  disabled={origins.length === 0}
+                  className="w-full p-2 rounded bg-white text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value={1}>1 Passenger</option>
+                  <option value={2}>2 Passengers</option>
+                  <option value={3}>3 Passengers</option>
+                  <option value={4}>4 Passengers</option>
+                  <option value={5}>5 Passengers</option>
+                  <option value={6}>6 Passengers</option>
+                  <option value={7}>7 Passengers</option>
+                  <option value={8}>8 Passengers</option>
+                  <option value={9}>9 Passengers</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-1 text-sm">Cabin Class</label>
+                <select
+                  value={cabinClass}
+                  onChange={(e) => setCabinClass(e.target.value)}
+                  disabled={origins.length === 0}
+                  className="w-full p-2 rounded bg-white text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="economy">Economy</option>
+                  <option value="premium-economy">Premium Economy</option>
+                  <option value="business">Business</option>
+                  <option value="first">First Class</option>
+                </select>
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={origins.length === 0 || !destination}
+              disabled={
+                origins.length === 0 ||
+                !destination.trim() ||
+                !depart ||
+                (tripType === "round-trip" && !returnDate)
+              }
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded"
             >
               Search Flights
@@ -653,9 +852,152 @@ export default function Home() {
               </p>
 
               <p className="text-sm">
-                <span className="font-bold">Depart:</span>{" "}
+                <span className="font-bold">Trip Type:</span>{" "}
+                {results.tripType === "one-way" ? "One Way" : "Round Trip"}
+              </p>
+
+              <p className="text-sm">
+                <span className="font-bold">Departure:</span>{" "}
                 {results.depart || "(none)"}
               </p>
+
+              {results.tripType === "round-trip" && (
+                <p className="text-sm">
+                  <span className="font-bold">Return:</span>{" "}
+                  {results.returnDate || "(none)"}
+                </p>
+              )}
+
+              <p className="text-sm">
+                <span className="font-bold">Passengers:</span>{" "}
+                {results.passengers || 1}
+              </p>
+
+              <p className="text-sm">
+                <span className="font-bold">Cabin Class:</span>{" "}
+                {(results.cabinClass || "economy")
+                  .replace("-", " ")
+                  .replace(/\b\w/g, (letter) => letter.toUpperCase())}
+              </p>
+            </div>
+          )}
+
+          {/* ---------- Temporary Flight Results ---------- */}
+          {flightOptions.length > 0 && (
+            <div className="mt-6 w-full max-w-xl">
+              {/* ---------- Flight Results Header and Sorting ---------- */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">Flight Options</h2>
+
+                  <p className="text-sm text-slate-300">
+                    {flightOptions.length} results
+                  </p>
+                </div>
+
+                <div className="mt-3">
+                  <label className="mb-1 block text-sm text-slate-300">
+                    Sort By
+                  </label>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full rounded-lg bg-white p-2 text-black"
+                  >
+                    <option value="price">Lowest Price</option>
+                    <option value="departure">Earliest Departure</option>
+                    <option value="duration">Shortest Duration</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ---------- Sorted Flight Cards ---------- */}
+              <div className="space-y-4">
+                {[...flightOptions]
+                  .sort((a, b) => {
+                    if (sortBy === "price") {
+                      return a.price - b.price;
+                    }
+
+                    if (sortBy === "departure") {
+                      return (
+                        new Date(`1970-01-01 ${a.departureTime}`) -
+                        new Date(`1970-01-01 ${b.departureTime}`)
+                      );
+                    }
+
+                    if (sortBy === "duration") {
+                      const getMinutes = (duration) => {
+                        const hours = Number(
+                          duration.match(/(\d+)h/)?.[1] || 0,
+                        );
+
+                        const minutes = Number(
+                          duration.match(/(\d+)m/)?.[1] || 0,
+                        );
+
+                        return hours * 60 + minutes;
+                      };
+
+                      return getMinutes(a.duration) - getMinutes(b.duration);
+                    }
+
+                    return 0;
+                  })
+                  .map((flight) => (
+                    <div
+                      key={flight.id}
+                      className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">{flight.airline}</p>
+
+                          <p className="mt-1 text-sm text-slate-300">
+                            {flight.origin} to {flight.destination}
+                          </p>
+                        </div>
+
+                        <p className="text-xl font-bold">${flight.price}</p>
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-400">
+                            Departure
+                          </p>
+
+                          <p className="mt-1 font-semibold">
+                            {flight.departureTime}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-400">
+                            Arrival
+                          </p>
+
+                          <p className="mt-1 font-semibold">
+                            {flight.arrivalTime}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between text-sm text-slate-300">
+                        <span>{flight.duration}</span>
+                        <span>{flight.stops}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500"
+                      >
+                        View Flight
+                      </button>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
 
@@ -685,13 +1027,39 @@ export default function Home() {
                         <span className="font-bold">Origins:</span>{" "}
                         {item.origins.join(", ")}
                       </div>
+
                       <div className="text-sm">
                         <span className="font-bold">Destination:</span>{" "}
                         {item.destination}
                       </div>
+
                       <div className="text-sm">
-                        <span className="font-bold">Depart:</span>{" "}
+                        <span className="font-bold">Trip Type:</span>{" "}
+                        {item.tripType === "one-way" ? "One Way" : "Round Trip"}
+                      </div>
+
+                      <div className="text-sm">
+                        <span className="font-bold">Departure:</span>{" "}
                         {item.depart || "(none)"}
+                      </div>
+
+                      {item.tripType === "round-trip" && (
+                        <div className="text-sm">
+                          <span className="font-bold">Return:</span>{" "}
+                          {item.returnDate || "(none)"}
+                        </div>
+                      )}
+
+                      <div className="text-sm">
+                        <span className="font-bold">Passengers:</span>{" "}
+                        {item.passengers || 1}
+                      </div>
+
+                      <div className="text-sm">
+                        <span className="font-bold">Cabin Class:</span>{" "}
+                        {(item.cabinClass || "economy")
+                          .replace("-", " ")
+                          .replace(/\b\w/g, (letter) => letter.toUpperCase())}
                       </div>
                     </button>
                   </li>
